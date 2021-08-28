@@ -33,10 +33,10 @@ from sklearn.model_selection import StratifiedKFold
 CFG = {
     'fold_num': 10,
     'seed': 719,
-    'model_arch': 'swin_large_patch4_window12_384',
+    'model_arch': 'swin_base_patch4_window12_384',
     'img_size': 384,
     'epochs': 10,
-    'train_bs': 16,
+    'train_bs': 32,
     'valid_bs': 32,
     'T_0': 10,
     'lr': 1e-4,
@@ -47,7 +47,7 @@ CFG = {
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_file_name': 'swin_large_patch4_window12_384'
+    'saved_file_name': 'swin_base_patch4_window12_384_sep_trn_val'
 }
 
 
@@ -153,7 +153,7 @@ def get_valid_transforms():
     ])
 
 
-def prepare_dataloader(df, trn_idx, val_idx):
+def prepare_dataloader(df_train, df_valid):
     # ? from catalyst.data.sampler import BalanceClassSampler
     # targets = df.class_label
     # class_count = np.unique(targets, return_counts=True)[1]
@@ -164,8 +164,8 @@ def prepare_dataloader(df, trn_idx, val_idx):
     # sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
     #
 
-    train_ = df.loc[trn_idx, :].reset_index(drop=True)
-    valid_ = df.loc[val_idx, :].reset_index(drop=True)
+    train_ = df_train
+    valid_ = df_valid
 
     train_ds = MaskDataset(
         train_, transforms=get_train_transforms(), output_label=True)
@@ -201,35 +201,18 @@ def prepare_dataloader(df, trn_idx, val_idx):
         valid_ds,
         batch_size=CFG['valid_bs'],
         num_workers=CFG['num_workers'],
-        # shuffle=False,
+        shuffle=False,
         pin_memory=False,
     )
 
     return train_loader, val_loader
 
 
-# class MaskClassifier(nn.Module):
-#     def __init__(self, model_arch, n_class, pretrained=False):
-#         super().__init__()
-#         self.model = timm.create_model(
-#             model_arch, num_classes=n_class, pretrained=pretrained)
-#        # n_features = self.model.classifier.in_features
-#        # self.model.classifier = nn.Linear(n_features, n_class)
-
-#         # 초기화 모델에 따라 마지막단이 (이름이) classifier가 아닐 수 있습니다.
-#         # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
-#         # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
-#         # self.model.classifier.bias.data.uniform_(-stdv, stdv)
-
-#     def forward(self, x):
-#         x = self.model(x)
-#         return x
-class MaskClassifier(nn.Module):
+class MaskClassifier(nn.Module):  # efficientnet model
     def __init__(self, model_arch, n_class, pretrained=False):
         super().__init__()
         self.model = timm.create_model(
-            model_arch, pretrained=pretrained)
-        self.model.head = nn.Linear(1536, 18)
+            model_arch, num_classes=n_class, pretrained=pretrained)
        # n_features = self.model.classifier.in_features
        # self.model.classifier = nn.Linear(n_features, n_class)
 
@@ -241,6 +224,23 @@ class MaskClassifier(nn.Module):
     def forward(self, x):
         x = self.model(x)
         return x
+
+
+# class MaskClassifier(nn.Module):  # transfer model
+#     def __init__(self, model_arch, n_class, pretrained=False):
+#         super().__init__()
+#         self.model = timm.create_model(
+#             model_arch, pretrained=pretrained)
+#         in_feature = self.model.head.in_features
+#         self.model.head = nn.Linear(in_features=in_feature, out_features=18)
+#         # 초기화 모델에 따라 마지막단이 (이름이) classifier가 아닐 수 있습니다.
+#         # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
+#         # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
+#         # self.model.classifier.bias.data.uniform_(-stdv, stdv)
+
+#     def forward(self, x):
+#         x = self.model(x)
+#         return x
 
 
 def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, scheduler=None, schd_batch_update=False):
@@ -332,20 +332,18 @@ def make_save_dir(path, filename):
 
 
 if __name__ == "__main__":
-    make_save_dir(
-        '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
     seed_everything(CFG['seed'])
-    train = make_df_with_label(
-        data_folder_directory="/opt/ml/input/data/train")  # data with label
+    train = pd.read_csv('/opt/ml/input/data/train/train2.csv')
+    valid = pd.read_csv('/opt/ml/input/data/train/valid.csv')
 
     folds = StratifiedKFold(n_splits=CFG['fold_num'], shuffle=True, random_state=CFG['seed']).split(
         np.arange(train.shape[0]), train.class_label.values)
     for fold, (trn_idx, val_idx) in enumerate(folds):
         if fold > 0:
             break
-        best_valid_f1 = 0.7
+
         print('Training with {} started'.format(fold))
-        train_loader, val_loader = prepare_dataloader(train, trn_idx, val_idx)
+        train_loader, val_loader = prepare_dataloader(train, valid)
 
         device = torch.device(CFG['device'])
         model = MaskClassifier(
@@ -368,11 +366,11 @@ if __name__ == "__main__":
             with torch.no_grad():
                 valid_f1 = valid_one_epoch(
                     epoch, model, loss_fn, val_loader, device, scheduler=None, schd_loss_update=False)
+            make_save_dir(
+                '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
             folder_name = os.path.join(
                 '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
-            if best_valid_f1 < valid_f1:
-                torch.save(model, os.path.join(folder_name, '{}_fold_{}_{}_{}.pt'.format(
-                    CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))
-                best_valid_f1 = valid_f1
+            torch.save(model, os.path.join(folder_name, '{}_fold_{}_{}_{}.pt'.format(
+                CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))
         del model, optimizer, train_loader, val_loader, scaler, scheduler
         torch.cuda.empty_cache()
