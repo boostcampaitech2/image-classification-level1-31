@@ -82,7 +82,3 @@ class SepValidTrain():
         new_df['path'] = img_paths
         new_df['class_label'] = labels
         return new_df
-
-
-if __name__ == '__main__':
-    sep_val_train(10)
