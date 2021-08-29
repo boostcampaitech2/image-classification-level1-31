@@ -333,11 +333,14 @@ def make_save_dir(path, filename):
 
 if __name__ == "__main__":
     seed_everything(CFG['seed'])
+    make_save_dir(
+        '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
     train = pd.read_csv('/opt/ml/input/data/train/train2.csv')
     valid = pd.read_csv('/opt/ml/input/data/train/valid.csv')
 
     folds = StratifiedKFold(n_splits=CFG['fold_num'], shuffle=True, random_state=CFG['seed']).split(
         np.arange(train.shape[0]), train.class_label.values)
+    best_valid_f1 = 0.7
     for fold, (trn_idx, val_idx) in enumerate(folds):
         if fold > 0:
             break
@@ -366,11 +369,11 @@ if __name__ == "__main__":
             with torch.no_grad():
                 valid_f1 = valid_one_epoch(
                     epoch, model, loss_fn, val_loader, device, scheduler=None, schd_loss_update=False)
-            make_save_dir(
-                '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
             folder_name = os.path.join(
                 '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
-            torch.save(model, os.path.join(folder_name, '{}_fold_{}_{}_{}.pt'.format(
-                CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))
+            if best_valid_f1 < valid_f1:
+                torch.save(model, os.path.join(folder_name, '{}_fold_{}_{}_{}.pt'.format(
+                    CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))
+                best_valid_f1 = valid_f1
         del model, optimizer, train_loader, val_loader, scaler, scheduler
         torch.cuda.empty_cache()
