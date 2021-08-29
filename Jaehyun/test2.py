@@ -28,6 +28,7 @@ import random
 
 from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
+from make_df_sep_val_trn import SepValidTrain
 
 
 CFG = {
@@ -276,6 +277,7 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, sche
         imgs = imgs.to(device).float()
         image_labels = image_labels.to(device).long()
 
+        cutmix = False
         # cutmix 실행 될 경우
         if np.random.random() > 0.5 and CFG['config_BETA'] > 0:
             lam = np.random.beta(CFG['config_BETA'], CFG['config_BETA'])
@@ -378,12 +380,20 @@ if __name__ == "__main__":
     train = pd.read_csv('/opt/ml/input/data/train/train2.csv')
     valid = pd.read_csv('/opt/ml/input/data/train/valid.csv')
 
+    raw_train = SepValidTrain.make_tmp_labeled_df()
+
     folds = StratifiedKFold(n_splits=CFG['fold_num'], shuffle=True, random_state=CFG['seed']).split(
-        np.arange(train.shape[0]), train.class_label.values)
+        np.arange(raw_train.shape[0]), raw_train.tmp_label.values)
     best_valid_f1 = 0.7
     for fold, (trn_idx, val_idx) in enumerate(folds):
         if fold > 0:
             break
+
+        train_ = raw_train.loc[trn_idx, :].reset_index(drop=True)
+        valid_ = raw_train.loc[val_idx, :].reset_index(drop=True)
+
+        train = SepValidTrain.make_detailpath_N_label_df(train_)
+        valid = SepValidTrain.make_detailpath_N_label_df(valid_)
 
         print('Training with {} started'.format(fold))
         train_loader, val_loader = prepare_dataloader(train, valid)
