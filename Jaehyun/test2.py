@@ -47,7 +47,8 @@ CFG = {
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_file_name': 'swin_base_patch4_window12_384_sep_trn_val'
+    'saved_file_name': 'swin_base_patch4_window12_384_cutmix',
+    'config_BETA': 0.5,
 }
 
 
@@ -136,7 +137,9 @@ def get_train_transforms():
     return Compose([
         A.Resize(height=CFG['img_size'], width=CFG['img_size']),
         A.HorizontalFlip(p=0.5),
+        A.RandomFog(p=0.5),
         A.ShiftScaleRotate(p=0.5),
+        A.RGBShift(p=0.5),
         A.RandomBrightnessContrast(
             brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=0.5),
         A.GaussNoise(p=0.5),
@@ -242,6 +245,25 @@ class MaskClassifier(nn.Module):  # efficientnet model
 #         x = self.model(x)
 #         return x
 
+def rand_bbox(size, lam):  # size : [Batch_size, Channel, Width, Height]
+    W = size[2]
+    H = size[3]
+    cut_rat = np.sqrt(1. - lam)  # 패치 크기 비율
+    cut_w = np.int(W * cut_rat)
+    cut_h = np.int(H * cut_rat)
+
+    # 패치의 중앙 좌표 값 cx, cy
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    # 패치 모서리 좌표 값
+    bbx1 = 0
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = W
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
+
 
 def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, scheduler=None, schd_batch_update=False):
     model.train()
@@ -254,10 +276,28 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, sche
         imgs = imgs.to(device).float()
         image_labels = image_labels.to(device).long()
 
+        # cutmix 실행 될 경우
+        if np.random.random() > 0.5 and CFG['config_BETA'] > 0:
+            lam = np.random.beta(CFG['config_BETA'], CFG['config_BETA'])
+            rand_index = torch.randperm(imgs.size()[0]).to(device)
+            target_a = image_labels
+            target_b = image_labels[rand_index]
+            bbx1, bby1, bbx2, bby2 = rand_bbox(imgs.size(), lam)
+            imgs[:, :, bbx1:bbx2, bby1:bby2] = imgs[rand_index,
+                                                    :, bbx1:bbx2, bby1:bby2]
+            lam = 1 - ((bbx2-bbx1)*(bby2-bby1) /
+                       (imgs.size()[-1]*imgs.size()[-2]))
+            cutmix = True
+
         with autocast():
             image_preds = model(imgs)
 
-            loss = loss_fn(image_preds, image_labels)
+            if cutmix:
+                loss = loss_fn(image_preds, target_a)*lam + \
+                    loss_fn(image_preds, target_b)*(1. - lam)
+                cutmix = False
+            else:
+                loss = loss_fn(image_preds, image_labels)
 
             scaler.scale(loss).backward()
 
