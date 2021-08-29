@@ -17,6 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
+from sklearn.metrics import f1_score
 
 
 def seed_everything(seed):
@@ -151,6 +152,7 @@ def train(data_dir, model_dir, args):
     with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
 
+    best_val_f1 = 0
     best_val_acc = 0
     best_val_loss = np.inf
     for epoch in range(args.epochs):
@@ -196,6 +198,9 @@ def train(data_dir, model_dir, args):
             model.eval()
             val_loss_items = []
             val_acc_items = []
+            val_f1_preds = []
+            val_f1_labels = []
+
             figure = None
             for val_batch in val_loader:
                 inputs, labels = val_batch
@@ -210,6 +215,9 @@ def train(data_dir, model_dir, args):
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
 
+                val_f1_preds.append(preds.detach().cpu().numpy())
+                val_f1_labels.append(labels.detach().cpu().numpy())
+
                 if figure is None:
                     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
                     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
@@ -219,15 +227,27 @@ def train(data_dir, model_dir, args):
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
+
+            val_f1_preds = np.concatenate(val_f1_preds)
+            val_f1_labels = np.concatenate(val_f1_labels)
+            val_f1 = f1_score(val_f1_preds, val_f1_labels, average='macro')
+
             best_val_loss = min(best_val_loss, val_loss)
+            
             if val_acc > best_val_acc:
-                print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
-                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_acc = val_acc
+
+            if val_f1 > best_val_f1:
+                print(f"New best model for val f1-score : {val_f1:4.2}! saving the best model..")
+                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+                best_val_f1 = val_f1
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
                 f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || "
                 f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
+            )
+            print(
+                f'[F1-Score] best: {best_val_f1:4.2}'
             )
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
