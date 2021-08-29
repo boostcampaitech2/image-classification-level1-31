@@ -32,7 +32,7 @@ from make_df_sep_val_trn import SepValidTrain
 
 
 CFG = {
-    'fold_num': 10,
+    'fold_num': 5,
     'seed': 719,
     'model_arch': 'swin_base_patch4_window12_384',
     'img_size': 384,
@@ -48,7 +48,7 @@ CFG = {
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_file_name': 'swin_base_patch4_window12_384_cutmix',
+    'saved_file_name': 'swin_base_patch4_window12_384_cutmix_kflod',
     'config_BETA': 0.5,
 }
 
@@ -380,20 +380,19 @@ if __name__ == "__main__":
     train = pd.read_csv('/opt/ml/input/data/train/train2.csv')
     valid = pd.read_csv('/opt/ml/input/data/train/valid.csv')
 
-    raw_train = SepValidTrain.make_tmp_labeled_df()
+    raw_train = SepValidTrain().make_tmp_labeled_df()
 
     folds = StratifiedKFold(n_splits=CFG['fold_num'], shuffle=True, random_state=CFG['seed']).split(
         np.arange(raw_train.shape[0]), raw_train.tmp_label.values)
-    best_valid_f1 = 0.7
     for fold, (trn_idx, val_idx) in enumerate(folds):
-        if fold > 0:
-            break
+        # if fold > 0:
+        #     break
 
         train_ = raw_train.loc[trn_idx, :].reset_index(drop=True)
         valid_ = raw_train.loc[val_idx, :].reset_index(drop=True)
 
-        train = SepValidTrain.make_detailpath_N_label_df(train_)
-        valid = SepValidTrain.make_detailpath_N_label_df(valid_)
+        train = SepValidTrain().make_detailpath_N_label_df(train_)
+        valid = SepValidTrain().make_detailpath_N_label_df(valid_)
 
         print('Training with {} started'.format(fold))
         train_loader, val_loader = prepare_dataloader(train, valid)
@@ -411,6 +410,8 @@ if __name__ == "__main__":
 
         loss_tr = nn.CrossEntropyLoss().to(device)
         loss_fn = nn.CrossEntropyLoss().to(device)
+
+        best_valid_f1 = 0.7
 
         for epoch in range(CFG['epochs']):
             train_one_epoch(epoch, model, loss_tr, optimizer, train_loader,

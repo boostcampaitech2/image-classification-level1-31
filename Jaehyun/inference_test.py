@@ -241,11 +241,11 @@ if __name__ == "__main__":
         tst_preds = np.mean(tst_preds, axis=0)
 
         print('fold {} validation loss = {:.5f}'.format(
-            fold, log_loss(valid_.label.values, val_preds)))
+            fold, log_loss(valid_.class_label.values, val_preds)))
         print('fold {} validation f1-score = {:.5f}'.format(fold,
-              f1_score(valid_.label.values, np.argmax(val_preds, axis=1), average='macro')))
+              f1_score(valid_.class_label.values, np.argmax(val_preds, axis=1), average='macro')))
         print(classification_report(
-            valid_.label, np.argmax(val_preds, axis=1)))
+            valid_.class_label, np.argmax(val_preds, axis=1)))
 
         submission = pd.read_csv("/opt/ml/input/data/eval/info.csv")
         submission['ans'] = np.argmax(tst_preds, axis=1)

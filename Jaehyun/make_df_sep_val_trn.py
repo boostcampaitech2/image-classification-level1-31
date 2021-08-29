@@ -34,7 +34,7 @@ class SepValidTrain():
 
         return train_df
 
-    def make_detailpath_N_label_df(raw_df):
+    def make_detailpath_N_label_df(self, raw_df):
         paths = list(raw_df['path'])
         ids = []
         genders = []
