@@ -312,3 +312,6 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+if __name__ == '__main__':
+    print('dataset.py is running')
