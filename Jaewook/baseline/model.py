@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.nn.init as init
 
 from torchvision.models import resnet18
+import timm
 
 def initialize_weights(model):
     for m in model.modules():
@@ -50,7 +51,7 @@ class BaseModel(nn.Module):
 
 
 # Custom Model Template
-class MyModel(nn.Module):
+class MyResnet18(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         """
@@ -71,7 +72,16 @@ class MyModel(nn.Module):
         x = self.model(x)
         return x
 
+class MyEfficientModel(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = timm.create_model('tf_efficientnet_b4_ns', num_classes=num_classes, pretrained=True)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
 if __name__ == '__main__':
     print('model.py is running')
-    myModel = MyModel(18)
+    myModel = MyResnetModel(18)
     print(myModel)
