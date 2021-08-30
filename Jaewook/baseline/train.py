@@ -7,6 +7,7 @@ import random
 import re
 from importlib import import_module
 from pathlib import Path
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, classification_report
 
 
 def seed_everything(seed):
@@ -155,6 +156,8 @@ def train(data_dir, model_dir, args):
     best_val_f1 = 0
     best_val_acc = 0
     best_val_loss = np.inf
+
+    since = time.time()
     for epoch in range(args.epochs):
         # train loop
         model.train()
@@ -170,7 +173,7 @@ def train(data_dir, model_dir, args):
             outs = model(inputs)
             preds = torch.argmax(outs, dim=-1)
             loss = criterion(outs, labels)
-
+        
             loss.backward()
             optimizer.step()
 
@@ -181,7 +184,7 @@ def train(data_dir, model_dir, args):
                 train_acc = matches / args.batch_size / args.log_interval
                 current_lr = get_lr(optimizer)
                 print(
-                    f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
+                    f"Epoch[{epoch + 1}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
                     f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
                 )
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
@@ -231,9 +234,10 @@ def train(data_dir, model_dir, args):
             val_f1_preds = np.concatenate(val_f1_preds)
             val_f1_labels = np.concatenate(val_f1_labels)
             val_f1 = f1_score(val_f1_preds, val_f1_labels, average='macro')
+            print(classification_report(val_f1_labels, val_f1_preds))
 
             best_val_loss = min(best_val_loss, val_loss)
-            
+
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
 
@@ -254,6 +258,8 @@ def train(data_dir, model_dir, args):
             logger.add_figure("results", figure, epoch)
             print()
 
+    print('Total Time:', time.time()-since)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -271,7 +277,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
-    parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
+    parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: Adam)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')

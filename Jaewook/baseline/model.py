@@ -72,16 +72,16 @@ class MyResnet18(nn.Module):
         x = self.model(x)
         return x
 
-class MyEfficientModel(nn.Module):
+class EfficientNet(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.model = timm.create_model('tf_efficientnet_b4_ns', num_classes=num_classes, pretrained=True)
-
+        
     def forward(self, x):
         x = self.model(x)
         return x
 
+
 if __name__ == '__main__':
     print('model.py is running')
-    myModel = MyResnetModel(18)
-    print(myModel)
+    myModel = EfficientNet(18)
