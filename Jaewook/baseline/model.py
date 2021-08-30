@@ -75,16 +75,8 @@ class MyResnet18(nn.Module):
 class EfficientNet(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.model = timm.create_model('tf_efficientnetv2_l_in21ft1k', pretrained=True)
-        self.model.classifier = nn.Sequential(
-            nn.Linear(1280, 1000),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(1000, 1000),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(1000, num_classes)
-        )
+        self.model = timm.create_model('tf_efficientnet_b4_ns', pretrained=True)
+        self.model.classifier = nn.Linear(1792, num_classes)
         
     def forward(self, x):
         x = self.model(x)

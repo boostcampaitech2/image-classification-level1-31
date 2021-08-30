@@ -16,6 +16,7 @@ import torch
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torch.cuda.amp import autocast, GradScaler
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
@@ -174,7 +175,7 @@ def train(data_dir, model_dir, args):
             outs = model(inputs)
             preds = torch.argmax(outs, dim=-1)
             loss = criterion(outs, labels)
-        
+    
             loss.backward()
             optimizer.step()
 
@@ -249,8 +250,8 @@ def train(data_dir, model_dir, args):
             
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
-                f"[Acc & Loss] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || "
-                f"[Acc & Loss] best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
+                f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || "
+                f"[Val] best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
             )
             print(
                 f'[F1-Score] current: {val_f1:4.2} || '
@@ -276,7 +277,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 1)')
     parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[256, 256], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=list, default=[380, 380], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=32, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=64, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
