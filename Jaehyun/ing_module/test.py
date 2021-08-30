@@ -28,17 +28,15 @@ import random
 
 from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
-from make_df_sep_val_trn import SepValidTrain
-from torch.utils.tensorboard import SummaryWriter
 
 
 CFG = {
-    'fold_num': 5,
+    'fold_num': 10,
     'seed': 719,
-    'model_arch': 'tf_efficientnet_b4_ns',
+    'model_arch': 'swin_large_patch4_window12_384',
     'img_size': 384,
     'epochs': 10,
-    'train_bs': 32,
+    'train_bs': 16,
     'valid_bs': 32,
     'T_0': 10,
     'lr': 1e-4,
@@ -49,8 +47,7 @@ CFG = {
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_file_name': 'tf_efficientnet_b4_ns_kflod',
-    'config_BETA': 0.5,
+    'saved_file_name': 'swin_large_patch4_window12_384'
 }
 
 
@@ -139,9 +136,7 @@ def get_train_transforms():
     return Compose([
         A.Resize(height=CFG['img_size'], width=CFG['img_size']),
         A.HorizontalFlip(p=0.5),
-        A.RandomFog(p=0.5),
-        # A.ShiftScaleRotate(p=0.5),
-        # A.RGBShift(p=0.5),
+        A.ShiftScaleRotate(p=0.5),
         A.RandomBrightnessContrast(
             brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=0.5),
         A.GaussNoise(p=0.5),
@@ -158,7 +153,7 @@ def get_valid_transforms():
     ])
 
 
-def prepare_dataloader(df_train, df_valid):
+def prepare_dataloader(df, trn_idx, val_idx):
     # ? from catalyst.data.sampler import BalanceClassSampler
     # targets = df.class_label
     # class_count = np.unique(targets, return_counts=True)[1]
@@ -169,8 +164,8 @@ def prepare_dataloader(df_train, df_valid):
     # sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
     #
 
-    train_ = df_train
-    valid_ = df_valid
+    train_ = df.loc[trn_idx, :].reset_index(drop=True)
+    valid_ = df.loc[val_idx, :].reset_index(drop=True)
 
     train_ds = MaskDataset(
         train_, transforms=get_train_transforms(), output_label=True)
@@ -206,18 +201,35 @@ def prepare_dataloader(df_train, df_valid):
         valid_ds,
         batch_size=CFG['valid_bs'],
         num_workers=CFG['num_workers'],
-        shuffle=False,
+        # shuffle=False,
         pin_memory=False,
     )
 
     return train_loader, val_loader
 
 
-class MaskClassifier(nn.Module):  # efficientnet model
+# class MaskClassifier(nn.Module):
+#     def __init__(self, model_arch, n_class, pretrained=False):
+#         super().__init__()
+#         self.model = timm.create_model(
+#             model_arch, num_classes=n_class, pretrained=pretrained)
+#        # n_features = self.model.classifier.in_features
+#        # self.model.classifier = nn.Linear(n_features, n_class)
+
+#         # 초기화 모델에 따라 마지막단이 (이름이) classifier가 아닐 수 있습니다.
+#         # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
+#         # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
+#         # self.model.classifier.bias.data.uniform_(-stdv, stdv)
+
+#     def forward(self, x):
+#         x = self.model(x)
+#         return x
+class MaskClassifier(nn.Module):
     def __init__(self, model_arch, n_class, pretrained=False):
         super().__init__()
         self.model = timm.create_model(
-            model_arch, num_classes=n_class, pretrained=pretrained)
+            model_arch, pretrained=pretrained)
+        self.model.head = nn.Linear(1536, 18)
        # n_features = self.model.classifier.in_features
        # self.model.classifier = nn.Linear(n_features, n_class)
 
@@ -231,102 +243,7 @@ class MaskClassifier(nn.Module):  # efficientnet model
         return x
 
 
-# class MaskClassifier(nn.Module):  # transfer model
-#     def __init__(self, model_arch, n_class, pretrained=False):
-#         super().__init__()
-#         self.model = timm.create_model(
-#             model_arch, pretrained=pretrained)
-#         in_feature = self.model.head.in_features
-#         self.model.head = nn.Linear(in_features=in_feature, out_features=18)
-#         # 초기화 모델에 따라 마지막단이 (이름이) classifier가 아닐 수 있습니다.
-#         # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
-#         # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
-#         # self.model.classifier.bias.data.uniform_(-stdv, stdv)
-
-#     def forward(self, x):
-#         x = self.model(x)
-#         return x
-
-def rand_bbox(size, lam):  # size : [Batch_size, Channel, Width, Height]
-    W = size[2]
-    H = size[3]
-    cut_rat = np.sqrt(1. - lam)  # 패치 크기 비율
-    cut_w = np.int(W * cut_rat)
-    cut_h = np.int(H * cut_rat)
-
-    # 패치의 중앙 좌표 값 cx, cy
-    cx = np.random.randint(W)
-    cy = np.random.randint(H)
-
-    # 패치 모서리 좌표 값
-    bbx1 = 0
-    bby1 = np.clip(cy - cut_h // 2, 0, H)
-    bbx2 = W
-    bby2 = np.clip(cy + cut_h // 2, 0, H)
-
-    return bbx1, bby1, bbx2, bby2
-
-
-# def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, scheduler=None, schd_batch_update=False):
-#     model.train()
-
-#     t = time.time()
-#     running_loss = None
-
-#     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
-#     for step, (imgs, image_labels) in pbar:
-#         imgs = imgs.to(device).float()
-#         image_labels = image_labels.to(device).long()
-
-#         cutmix = False
-#         # cutmix 실행 될 경우
-#         if np.random.random() > 0.5 and CFG['config_BETA'] > 0:
-#             lam = np.random.beta(CFG['config_BETA'], CFG['config_BETA'])
-#             rand_index = torch.randperm(imgs.size()[0]).to(device)
-#             target_a = image_labels
-#             target_b = image_labels[rand_index]
-#             bbx1, bby1, bbx2, bby2 = rand_bbox(imgs.size(), lam)
-#             imgs[:, :, bbx1:bbx2, bby1:bby2] = imgs[rand_index,
-#                                                     :, bbx1:bbx2, bby1:bby2]
-#             lam = 1 - ((bbx2-bbx1)*(bby2-bby1) /
-#                        (imgs.size()[-1]*imgs.size()[-2]))
-#             cutmix = True
-
-#         with autocast():
-#             image_preds = model(imgs)
-
-#             if cutmix:
-#                 loss = loss_fn(image_preds, target_a)*lam + \
-#                     loss_fn(image_preds, target_b)*(1. - lam)
-#                 cutmix = False
-#             else:
-#                 loss = loss_fn(image_preds, image_labels)
-
-#             scaler.scale(loss).backward()
-
-#             if running_loss is None:
-#                 running_loss = loss.item()
-#             else:
-#                 running_loss = running_loss * .99 + loss.item() * .01
-
-#             if ((step + 1) % CFG['accum_iter'] == 0) or ((step + 1) == len(train_loader)):
-#                 # may unscale_ here if desired (e.g., to allow clipping unscaled gradients)
-
-#                 scaler.step(optimizer)
-#                 scaler.update()
-#                 optimizer.zero_grad()
-
-#                 if scheduler is not None and schd_batch_update:
-#                     scheduler.step()
-
-#             if ((step + 1) % CFG['verbose_step'] == 0) or ((step + 1) == len(train_loader)):
-#                 description = f'epoch {epoch} loss: {running_loss:.4f}'
-#                 pbar.set_description(description)
-
-#     if scheduler is not None and not schd_batch_update:
-#         scheduler.step()
-
-def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, logger, scheduler=None, schd_batch_update=False):
+def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, scheduler=None, schd_batch_update=False):
     model.train()
 
     t = time.time()
@@ -337,29 +254,10 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, logg
         imgs = imgs.to(device).float()
         image_labels = image_labels.to(device).long()
 
-        cutmix = False
-        # cutmix 실행 될 경우
-        if np.random.random() > 0.5 and CFG['config_BETA'] > 0:
-            lam = np.random.beta(CFG['config_BETA'], CFG['config_BETA'])
-            rand_index = torch.randperm(imgs.size()[0]).to(device)
-            target_a = image_labels
-            target_b = image_labels[rand_index]
-            bbx1, bby1, bbx2, bby2 = rand_bbox(imgs.size(), lam)
-            imgs[:, :, bbx1:bbx2, bby1:bby2] = imgs[rand_index,
-                                                    :, bbx1:bbx2, bby1:bby2]
-            lam = 1 - ((bbx2-bbx1)*(bby2-bby1) /
-                       (imgs.size()[-1]*imgs.size()[-2]))
-            cutmix = True
-
         with autocast():
             image_preds = model(imgs)
 
-            if cutmix:
-                loss = loss_fn(image_preds, target_a)*lam + \
-                    loss_fn(image_preds, target_b)*(1. - lam)
-                cutmix = False
-            else:
-                loss = loss_fn(image_preds, image_labels)
+            loss = loss_fn(image_preds, image_labels)
 
             scaler.scale(loss).backward()
 
@@ -381,11 +279,6 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, logg
             if ((step + 1) % CFG['verbose_step'] == 0) or ((step + 1) == len(train_loader)):
                 description = f'epoch {epoch} loss: {running_loss:.4f}'
                 pbar.set_description(description)
-                logger.add_scalar("Train/loss", running_loss,
-                                  epoch * len(train_loader) + step)
-        if step % len(train_loader) - 1 == 0:
-            img_grid = torchvision.utils.make_grid(tensor=imgs)
-            logger.add_image(f'{step}_train_input_img', img_grid, step)
 
     if scheduler is not None and not schd_batch_update:
         scheduler.step()
@@ -439,33 +332,20 @@ def make_save_dir(path, filename):
 
 
 if __name__ == "__main__":
-    seed_everything(CFG['seed'])
-
-    # Tensorboard
-    logger = SummaryWriter(log_dir='logs/{}'.format(CFG['saved_file_name']))
-
     make_save_dir(
         '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
-    # train = pd.read_csv('/opt/ml/input/data/train/train2.csv')
-    # valid = pd.read_csv('/opt/ml/input/data/train/valid.csv')
-
-    # raw_train = SepValidTrain().make_tmp_labeled_df()
-    raw_train = pd.read_csv('/opt/ml/input/data/train/train3.csv')
+    seed_everything(CFG['seed'])
+    train = make_df_with_label(
+        data_folder_directory="/opt/ml/input/data/train")  # data with label
 
     folds = StratifiedKFold(n_splits=CFG['fold_num'], shuffle=True, random_state=CFG['seed']).split(
-        np.arange(raw_train.shape[0]), raw_train.tmp_label.values)
+        np.arange(train.shape[0]), train.class_label.values)
     for fold, (trn_idx, val_idx) in enumerate(folds):
-        # if fold > 0:
-        #     break
-
-        train_ = raw_train.loc[trn_idx, :].reset_index(drop=True)
-        valid_ = raw_train.loc[val_idx, :].reset_index(drop=True)
-
-        train = SepValidTrain().make_detailpath_N_label_df(train_)
-        valid = SepValidTrain().make_detailpath_N_label_df(valid_)
-
+        if fold > 0:
+            break
+        best_valid_f1 = 0.7
         print('Training with {} started'.format(fold))
-        train_loader, val_loader = prepare_dataloader(train, valid)
+        train_loader, val_loader = prepare_dataloader(train, trn_idx, val_idx)
 
         device = torch.device(CFG['device'])
         model = MaskClassifier(
@@ -481,11 +361,10 @@ if __name__ == "__main__":
         loss_tr = nn.CrossEntropyLoss().to(device)
         loss_fn = nn.CrossEntropyLoss().to(device)
 
-        best_valid_f1 = 0.7
-
         for epoch in range(CFG['epochs']):
             train_one_epoch(epoch, model, loss_tr, optimizer, train_loader,
-                            device, logger, scheduler=scheduler, schd_batch_update=False)
+                            device, scheduler=scheduler, schd_batch_update=False)
+
             with torch.no_grad():
                 valid_f1 = valid_one_epoch(
                     epoch, model, loss_fn, val_loader, device, scheduler=None, schd_loss_update=False)

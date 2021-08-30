@@ -33,7 +33,7 @@ CFG = {
     'fold_num': 10,
     'seed': 719,
     # 'model_arch': 'vit_base_patch16_384',
-    'model_arch': 'swin_base_patch4_window12_384',
+    'model_arch': 'swin_large_patch4_window12_384',
     'img_size': 384,
     'epochs': 10,
     'train_bs': 16,
@@ -49,8 +49,7 @@ CFG = {
     'device': 'cuda:0',
     # 'model_folder': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
     'save_model_path': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
-    'saved_file_name': 'ensemble',
-    'ensemble_num': 5
+    'saved_file_name': 'swin_large_patch4_window12_384'
 }
 
 
@@ -190,9 +189,7 @@ if __name__ == "__main__":
 
         print('Inference fold {} started'.format(fold))
 
-        # valid_ = train.loc[val_idx, :].reset_index(drop=True)
-        valid_ = pd.read_csv('/opt/ml/input/data/train/test.csv')
-
+        valid_ = train.loc[val_idx, :].reset_index(drop=True)
         valid_ds = MaskDataset(
             valid_, transforms=get_inference_transforms(), output_label=False)
 
@@ -228,13 +225,7 @@ if __name__ == "__main__":
         model_folder = os.path.join(
             CFG['save_model_path'], CFG['saved_file_name'])  # 모델 저장 폴더
         # 사용할 모델 리스트
-        models = find_best_model(model_folder, CFG['ensemble_num'])
-        # models = ['swin_base_patch4_window12_384_fold_0_9_0.82.pt',
-        #   'swin_base_patch4_window12_384_fold_1_4_0.828.pt',
-        #   'swin_base_patch4_window12_384_fold_2_0_0.807.pt',
-        #   'swin_base_patch4_window12_384_fold_3_7_0.838.pt',
-        #   'swin_base_patch4_window12_384_fold_4_5_0.851.pt'
-        #   ]
+        models = find_best_model(model_folder, 5)
 
         for i, model_version in enumerate(models):
             model = torch.load(model_folder+"/"+model_version)
@@ -247,11 +238,11 @@ if __name__ == "__main__":
         tst_preds = np.mean(tst_preds, axis=0)
 
         print('fold {} validation loss = {:.5f}'.format(
-            fold, log_loss(valid_.class_label.values, val_preds)))
+            fold, log_loss(valid_.label.values, val_preds)))
         print('fold {} validation f1-score = {:.5f}'.format(fold,
-              f1_score(valid_.class_label.values, np.argmax(val_preds, axis=1), average='macro')))
+              f1_score(valid_.label.values, np.argmax(val_preds, axis=1), average='macro')))
         print(classification_report(
-            valid_.class_label, np.argmax(val_preds, axis=1)))
+            valid_.label, np.argmax(val_preds, axis=1)))
 
         submission = pd.read_csv("/opt/ml/input/data/eval/info.csv")
         submission['ans'] = np.argmax(tst_preds, axis=1)

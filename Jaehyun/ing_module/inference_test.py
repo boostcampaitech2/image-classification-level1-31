@@ -49,8 +49,8 @@ CFG = {
     'device': 'cuda:0',
     # 'model_folder': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
     'save_model_path': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
-    'saved_file_name': 'ensemble',
-    'ensemble_num': 5
+    'saved_file_name': 'swin_base_patch4_window12_384_cutmix_kflod',
+    'ensemble_num': 3
 }
 
 
@@ -191,7 +191,7 @@ if __name__ == "__main__":
         print('Inference fold {} started'.format(fold))
 
         # valid_ = train.loc[val_idx, :].reset_index(drop=True)
-        valid_ = pd.read_csv('/opt/ml/input/data/train/test.csv')
+        valid_ = pd.read_csv('/opt/ml/input/data/train/new_valid.csv')
 
         valid_ds = MaskDataset(
             valid_, transforms=get_inference_transforms(), output_label=False)
@@ -229,12 +229,12 @@ if __name__ == "__main__":
             CFG['save_model_path'], CFG['saved_file_name'])  # 모델 저장 폴더
         # 사용할 모델 리스트
         models = find_best_model(model_folder, CFG['ensemble_num'])
-        # models = ['swin_base_patch4_window12_384_fold_0_9_0.82.pt',
-        #   'swin_base_patch4_window12_384_fold_1_4_0.828.pt',
-        #   'swin_base_patch4_window12_384_fold_2_0_0.807.pt',
-        #   'swin_base_patch4_window12_384_fold_3_7_0.838.pt',
-        #   'swin_base_patch4_window12_384_fold_4_5_0.851.pt'
-        #   ]
+        models = ['swin_base_patch4_window12_384_fold_0_3_0.798.pt',
+                  'swin_base_patch4_window12_384_fold_1_4_0.828.pt',
+                  'swin_base_patch4_window12_384_fold_2_0_0.807.pt',
+                  'swin_base_patch4_window12_384_fold_3_7_0.838.pt',
+                  'swin_base_patch4_window12_384_fold_4_5_0.851.pt'
+                  ]
 
         for i, model_version in enumerate(models):
             model = torch.load(model_folder+"/"+model_version)

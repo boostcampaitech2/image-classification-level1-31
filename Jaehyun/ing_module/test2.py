@@ -35,7 +35,7 @@ from torch.utils.tensorboard import SummaryWriter
 CFG = {
     'fold_num': 5,
     'seed': 719,
-    'model_arch': 'tf_efficientnet_b4_ns',
+    'model_arch': 'swin_base_patch4_window12_384',
     'img_size': 384,
     'epochs': 10,
     'train_bs': 32,
@@ -49,7 +49,7 @@ CFG = {
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_file_name': 'tf_efficientnet_b4_ns_kflod',
+    'saved_file_name': 'swin_base_patch4_window12_384_cutmix_kflod',
     'config_BETA': 0.5,
 }
 
@@ -140,8 +140,8 @@ def get_train_transforms():
         A.Resize(height=CFG['img_size'], width=CFG['img_size']),
         A.HorizontalFlip(p=0.5),
         A.RandomFog(p=0.5),
-        # A.ShiftScaleRotate(p=0.5),
-        # A.RGBShift(p=0.5),
+        A.ShiftScaleRotate(p=0.5),
+        A.RGBShift(p=0.5),
         A.RandomBrightnessContrast(
             brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=0.5),
         A.GaussNoise(p=0.5),
@@ -383,9 +383,8 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, train_loader, device, logg
                 pbar.set_description(description)
                 logger.add_scalar("Train/loss", running_loss,
                                   epoch * len(train_loader) + step)
-        if step % len(train_loader) - 1 == 0:
-            img_grid = torchvision.utils.make_grid(tensor=imgs)
-            logger.add_image(f'{step}_train_input_img', img_grid, step)
+    img_grid = torchvision.utils.make_grid(imgs)
+    logger.add_image(f'{epoch}_train_input_img', img_grid, epoch)
 
     if scheduler is not None and not schd_batch_update:
         scheduler.step()
@@ -446,17 +445,16 @@ if __name__ == "__main__":
 
     make_save_dir(
         '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
-    # train = pd.read_csv('/opt/ml/input/data/train/train2.csv')
-    # valid = pd.read_csv('/opt/ml/input/data/train/valid.csv')
+    train = pd.read_csv('/opt/ml/input/data/train/train2.csv')
+    valid = pd.read_csv('/opt/ml/input/data/train/valid.csv')
 
-    # raw_train = SepValidTrain().make_tmp_labeled_df()
-    raw_train = pd.read_csv('/opt/ml/input/data/train/train3.csv')
+    raw_train = SepValidTrain().make_tmp_labeled_df()
 
     folds = StratifiedKFold(n_splits=CFG['fold_num'], shuffle=True, random_state=CFG['seed']).split(
         np.arange(raw_train.shape[0]), raw_train.tmp_label.values)
     for fold, (trn_idx, val_idx) in enumerate(folds):
-        # if fold > 0:
-        #     break
+        if fold > 0:
+            break
 
         train_ = raw_train.loc[trn_idx, :].reset_index(drop=True)
         valid_ = raw_train.loc[val_idx, :].reset_index(drop=True)
@@ -486,6 +484,9 @@ if __name__ == "__main__":
         for epoch in range(CFG['epochs']):
             train_one_epoch(epoch, model, loss_tr, optimizer, train_loader,
                             device, logger, scheduler=scheduler, schd_batch_update=False)
+            img_grid = torchvision.utils.make_grid()
+            logger.add_image(f'{epoch}_train_input_img', )
+
             with torch.no_grad():
                 valid_f1 = valid_one_epoch(
                     epoch, model, loss_fn, val_loader, device, scheduler=None, schd_loss_update=False)
