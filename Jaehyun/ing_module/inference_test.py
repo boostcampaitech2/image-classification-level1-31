@@ -237,7 +237,7 @@ if __name__ == "__main__":
                   ]
 
         for i, model_version in enumerate(models):
-            model = torch.load(model_folder+"/"+model_version)
+            model.load_state_dict(torch.load(model_folder+"/"+model_version))
             model = model.to(device)
             with torch.no_grad():
                 val_preds += [inference_one_epoch(model, val_loader, device)]
