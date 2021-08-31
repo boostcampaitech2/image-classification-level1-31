@@ -24,27 +24,32 @@ from data_utils.datasets import MaskDataset
 from data_utils.data_loaders import MaskDataLoader
 from model.models import MaskClassifier_efficient, MaskClassifier_transformer
 from trainer import Trainer
+from model.loss import *
+
+
+model_class = {'swin_base_patch4_window12_384': 'Transformer',
+               'tf_efficientnet_b4_ns':  'EfficientNet',
+               }
 
 CFG = {
-    'fold_num': 5,
-    'seed': 719,
-    'model_class': 'Transformer',
-    # 'model_class': 'EfficientNet',
     'model_arch': 'swin_base_patch4_window12_384',
+    'saved_floder': 'swin_base_patch4_window12_384_F1loss',
+    'loss': 'f1',
     'img_size': 384,
-    'epochs': 10,
     'train_bs': 32,
     'valid_bs': 32,
+    'fold_num': 5,
+    'seed': 719,
+    'epochs': 10,
     'T_0': 10,
     'lr': 1e-4,
     'min_lr': 1e-6,
     'weight_decay': 1e-6,
-    'num_workers': 2,
+    'num_workers': 4,
     # suppoprt to do batch accumulation for backprop with effectively larger batch size
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_floder': 'test',
     'config_BETA': 0.5,
 }
 
@@ -64,7 +69,7 @@ def get_train_transforms():
         A.Resize(height=CFG['img_size'], width=CFG['img_size']),
         A.HorizontalFlip(p=0.5),
         A.RandomFog(p=0.5),
-        A.ShiftScaleRotate(p=0.5),
+        # A.ShiftScaleRotate(p=0.5),
         A.RGBShift(p=0.5),
         A.RandomBrightnessContrast(
             brightness_limit=(-0.1, 0.1), contrast_limit=(-0.1, 0.1), p=0.5),
@@ -127,12 +132,14 @@ if __name__ == "__main__":
         device = torch.device(CFG['device'])
 
         # 모델 생성
-        if CFG['model_class'] == 'Transformer':
-            print('Training Model is {}'.format(CFG['model_class']))
+        if model_class[CFG['model_arch']] == 'Transformer':
+            print('Training Model is {}'.format(
+                model_class[CFG['model_arch']]))
             model = MaskClassifier_transformer(
                 CFG['model_arch'], train['class_label'].nunique(), True)
-        elif CFG['model_class'] == 'EfficientNet':
-            print('Training Model is {}'.format(CFG['model_class']))
+        elif model_class[CFG['model_arch']] == 'EfficientNet':
+            print('Training Model is {}'.format(
+                model_class[CFG['model_arch']]))
             model = MaskClassifier_efficient(
                 CFG['model_arch'], train['class_label'].nunique(), True)
         else:
@@ -147,7 +154,10 @@ if __name__ == "__main__":
             optimizer, T_0=CFG['T_0'], T_mult=1, eta_min=CFG['min_lr'], last_epoch=-1)
 
         # loss 선언
-        loss_fn = nn.CrossEntropyLoss().to(device)
+        if CFG['loss'] == 'crossentropy':
+            loss_fn = nn.CrossEntropyLoss().to(device)
+        elif CFG['loss'] == 'f1':
+            loss_fn = F1Loss(18)
 
         best_valid_f1 = 0.7
 
@@ -158,11 +168,13 @@ if __name__ == "__main__":
                           device=device,
                           scaler=scaler,
                           logger=logger,
-                          scheduler=scheduler
+                          scheduler=scheduler,
+                          schd_batch_update=True
                           )
         # 학습 시작
         for epoch in range(CFG['epochs']):
-            trainer.train_one_epoch(epoch, train_loader, cutmix_beta=0.5)
+            trainer.train_one_epoch(
+                epoch, train_loader, cutmix_beta=0.5, accum_iter=2)
             with torch.no_grad():
                 valid_f1 = trainer.valid_one_epoch(epoch, val_loader)
             folder_path = os.path.join(
