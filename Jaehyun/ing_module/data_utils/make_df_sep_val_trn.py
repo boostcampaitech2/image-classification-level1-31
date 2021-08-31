@@ -1,3 +1,4 @@
+import enum
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
@@ -82,3 +83,18 @@ class SepValidTrain():
         new_df['path'] = img_paths
         new_df['class_label'] = labels
         return new_df
+
+
+if __name__ == '__main__':
+    sep = SepValidTrain()
+    raw_label_data = sep.make_tmp_labeled_df()
+    split = StratifiedKFold(7, shuffle=True, random_state=718)
+    folds = split.split(
+        np.arange(raw_label_data.shape[0]), raw_label_data.tmp_label.values)
+    for fold, (trn_idx, val_idx) in enumerate(folds):
+        train_ = raw_label_data.loc[trn_idx, :]
+        train_.to_csv('/opt/ml/input/data/train/train3.csv')
+
+        test_ = raw_label_data.loc[val_idx, :]
+        test_df = sep.make_detailpath_N_label_df(test_)
+        test_df.to_csv('/opt/ml/input/data/train/test.csv')
