@@ -26,21 +26,23 @@ from model.loss import *
 
 model_class = {'swin_base_patch4_window12_384': 'Transformer',
                'tf_efficientnet_b4_ns':  'EfficientNet',
+               'MaskClassifier_resnet50': 'ResNet50',
+               'vit_base_r50_s16_384': 'Transformer',
                }
 
 CFG = {
-    'model_arch': 'swin_base_patch4_window12_384',
-    'saved_floder': 'test_custom_model_CEL2F1',
+    'model_arch': 'vit_base_r50_s16_384',
+    'saved_floder': 'vit_base_r50_s16_384_addmodel',
     # 'loss': 'f1',
     'loss': 'crossentropy',
     # 'loss': 'labelsmooth',
     'img_size': 384,
-    'train_bs': 32,
+    'train_bs': 16,
     'valid_bs': 32,
     'fold_num': 5,
     'seed': 719,
-    'warmup_epochs': 10,
-    'epochs': 5,
+    # 'warmup_epochs': 10,
+    'epochs': 10,
     'T_0': 10,
     'lr': 1e-4,
     'min_lr': 1e-6,
@@ -98,12 +100,12 @@ if __name__ == "__main__":
     seed_everything(CFG['seed'])
     make_save_dir(
         '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_floder'])
+
+    # config txt로 저장
     f = open(os.path.join('/opt/ml/image-classification-level1-31/Jaehyun/saved_model/' +
              CFG['saved_floder'], 'log.txt'), 'w')
     f.write(str(CFG.items()).replace(',', '\n'))
     f.close()
-
-    # Tensorboard
 
     train = pd.read_csv('/opt/ml/input/data/train/train3.csv')
 
@@ -114,7 +116,10 @@ if __name__ == "__main__":
     for fold, (trn_idx, val_idx) in enumerate(folds):
         # if fold > 0:
         #     break
-        logger = SummaryWriter(log_dir='logs/{}'.format(CFG['saved_floder']))
+
+        # Tensorboard
+        logger = SummaryWriter(
+            log_dir='logs/{}/{}'.format(CFG['saved_floder'], fold))
 
         train_ = raw_train.loc[trn_idx, :].reset_index(drop=True)
         valid_ = raw_train.loc[val_idx, :].reset_index(drop=True)
@@ -122,6 +127,11 @@ if __name__ == "__main__":
         # 데이터 셋 & 데이터 로더 선언
         train = SepValidTrain().make_detailpath_N_label_df(train_)
         valid = SepValidTrain().make_detailpath_N_label_df(valid_)
+
+        # 추가 데이터 60-98 데이터 학습
+        new_train_df = pd.read_csv('/opt/ml/input/data/train/newim.csv')
+        new_train_df = new_train_df.drop(['Unnamed: 0'], axis=1)
+        train = pd.concat([train, new_train_df], axis=0)
 
         print('Training with {} started'.format(fold))
         train_set = MaskDataset(train, get_train_transforms())
@@ -155,6 +165,12 @@ if __name__ == "__main__":
             print('Training Model is {}'.format(
                 model_class[CFG['model_arch']]))
             model = MaskClassifier_custom_efficient(
+                CFG['model_arch'], train['class_label'].nunique(), True)
+
+        elif model_class[CFG['model_arch']] == 'ResNet50':
+            print('Training Model is {}'.format(
+                model_class[CFG['model_arch']]))
+            model = MaskClassifier_resnet50(
                 CFG['model_arch'], train['class_label'].nunique(), True)
 
         else:

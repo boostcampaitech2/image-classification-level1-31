@@ -30,15 +30,16 @@ from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
 from make_df_sep_val_trn import SepValidTrain
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.metrics import classification_report
 
 
 CFG = {
     'fold_num': 5,
     'seed': 719,
-    'model_arch': 'tf_efficientnet_b4_ns',
+    'model_arch': 'cait_s36_384',
     'img_size': 384,
     'epochs': 10,
-    'train_bs': 32,
+    'train_bs': 16,
     'valid_bs': 32,
     'T_0': 10,
     'lr': 1e-4,
@@ -49,7 +50,7 @@ CFG = {
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_file_name': 'tf_efficientnet_b4_ns_kflod',
+    'saved_file_name': 'cait_s36_384_kflod',
     'config_BETA': 0.5,
 }
 
@@ -421,7 +422,8 @@ def valid_one_epoch(epoch, model, loss_fn, val_loader, device, scheduler=None, s
     image_targets_all = np.concatenate(image_targets_all)
     print('validation multi-class f1_score = {:.4f}'.format(
         f1_score(image_preds_all, image_targets_all, average='macro')))
-
+    print(classification_report(
+        valid_.class_label, np.argmax(val_preds, axis=1)))
     if scheduler is not None:
         if schd_loss_update:
             scheduler.step(loss_sum/sample_num)

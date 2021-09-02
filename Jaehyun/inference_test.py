@@ -123,9 +123,9 @@ class MaskClassifier(nn.Module):  # transfer model
     def __init__(self, model_arch, n_class, pretrained=False):
         super().__init__()
         self.model = timm.create_model(
-            model_arch, pretrained=pretrained)
-        in_feature = self.model.head.in_features
-        self.model.head = nn.Linear(in_features=in_feature, out_features=18)
+            model_arch, num_classes=n_class, pretrained=pretrained)
+        # in_feature = self.model.head.in_features
+        # self.model.head = nn.Linear(in_features=in_feature, out_features=18)
        # n_features = self.model.classifier.in_features
        # self.model.classifier = nn.Linear(n_features, n_class)
 
@@ -166,8 +166,9 @@ def find_best_model(path, num):
     saved_model_path = path
     filelist = os.listdir(saved_model_path)
     for file in filelist:
-        f1_score = file.split('_')[-1]
-        tmp[float(f1_score[:-3])] = file
+        if file[0] != '.':
+            f1_score = file.split('_')[-1]
+            tmp[float(f1_score[:-3])] = file
     selectmodel = sorted(list(tmp.keys()), reverse=True)[:num]
     return [tmp[model] for model in selectmodel]
 
@@ -237,11 +238,20 @@ if __name__ == "__main__":
         #   ]
 
         for i, model_version in enumerate(models):
-            model = torch.load(model_folder+"/"+model_version)
+            model = MaskClassifier(
+                CFG['model_arch'], train['label'].nunique(), True)  # .to(device)
             model = model.to(device)
+            try:
+                model = torch.load(model_folder+"/"+model_version)
+            except:
+
+                model.load_state_dict(torch.load(
+                    model_folder+"/"+model_version))
+
+            # model = model.to(device)
             with torch.no_grad():
                 val_preds += [inference_one_epoch(model, val_loader, device)]
-                tst_preds += [inference_one_epoch(model, tst_loader, device)]
+                # tst_preds += [inference_one_epoch(model, tst_loader, device)]
 
         val_preds = np.mean(val_preds, axis=0)
         tst_preds = np.mean(tst_preds, axis=0)

@@ -61,6 +61,24 @@ class MaskClassifier_transformer(nn.Module):  # transformer model
         return x
 
 
+class MaskClassifier_resnet50(nn.Module):  # efficientnet model
+    def __init__(self, model_arch, n_class, pretrained=False):
+        super().__init__()
+        self.model = timm.create_model(
+            model_arch, num_classes=n_class, pretrained=pretrained)
+        in_features = self.model.classifier.in_features
+        self.model.classifier = nn.Linear(in_features, n_class)
+
+        # 초기화 모델에 따라 마지막단이 (이름이) classifier가 아닐 수 있습니다.
+        # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
+        # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
+        # self.model.classifier.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+
 class MaskClassifier_custom_efficient(nn.Module):  # efficientnet model
     def __init__(self, model_arch, n_class, pretrained=False):
         super().__init__()
@@ -119,6 +137,36 @@ class MaskClassifier_custom_transformer(nn.Module):  # transformer model
         return x
 
 
+class MaskClassifier_custom_transformer2(nn.Module):  # transformer model
+    def __init__(self, model_arch, n_class, pretrained=False):
+        super().__init__()
+        self.model = timm.create_model(
+            model_arch, pretrained=pretrained)
+        in_features = self.model.head.in_features
+        self.model.head = nn.Sequential(
+            nn.Linear(in_features=in_features, out_features=1024),
+            nn.ReLU(),
+            nn.Linear(in_features=1024, out_features=512),
+            nn.ReLU(),
+            nn.Linear(in_features=512, out_features=256),
+            nn.ReLU(),
+            nn.Linear(in_features=256, out_features=128),
+            nn.ReLU(),
+            nn.Linear(in_features=128, out_features=n_class),
+        )
+
+        def my_xavier_uniform(submodule):
+            if isinstance(submodule, nn.Linear):
+                torch.nn.init.xavier_uniform_(submodule.weight)
+                stdv = 1. / math.sqrt(submodule.weight.size(1))
+                submodule.bias.data.uniform_(-stdv, stdv)
+        self.model.head.apply(my_xavier_uniform)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+
 class MyModel(nn.Module):  # 나경님 vgg19 모델
     def __init__(self, num_classes: int = 1000):
         super(MyModel, self).__init__()
@@ -142,7 +190,7 @@ class MyModel(nn.Module):  # 나경님 vgg19 모델
         return x
 
 
-class TestModel(nn.Module):
+class TestModel(nn.Module):  # 재욱님 모델
     def __init__(self, num_classes):
         super().__init__()
         self.model = timm.create_model(

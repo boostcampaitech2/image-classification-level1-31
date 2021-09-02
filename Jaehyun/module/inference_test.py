@@ -45,7 +45,7 @@ CFG = {
     'device': 'cuda:0',
     'save_model_path': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
     'saved_file_name': 'ensemble',
-    'ensemble_num': 5
+    'ensemble_num': 7
 }
 
 
@@ -107,7 +107,6 @@ def find_best_model(path, num):
 
 if __name__ == "__main__":
     seed_everything(CFG['seed'])
-    train = pd.read_csv("/opt/ml/input/data/train/labeled_train_data.csv")
 
     f_name = '/opt/ml/input/data/eval/images'  # inference image folder
     test_df = pd.read_csv("/opt/ml/input/data/eval/info.csv")
@@ -168,27 +167,36 @@ if __name__ == "__main__":
 
         else:
             try:
-                model = MaskClassifier_efficient(CFG['model_arch'], 18)
+                model = MaskClassifier_efficient(
+                    '_'.join(model_version.split('_')[:-4]), 18)
                 model.load_state_dict(torch.load(
                     model_folder+"/"+model_version))
             except:
                 try:
-                    model = MaskClassifier_transformer(CFG['model_arch'], 18)
+                    model = MaskClassifier_transformer(
+                        '_'.join(model_version.split('_')[:-4]), 18)
                     model.load_state_dict(torch.load(
                         model_folder+"/"+model_version))
                 except:
                     try:
                         model = MaskClassifier_custom_transformer(
-                            CFG['model_arch'], 18)
+                            '_'.join(model_version.split('_')[:-4]), 18)
                         model.load_state_dict(torch.load(
                             model_folder+"/"+model_version))
                     except:
                         try:
-                            model = MaskClassifier(CFG['model_arch'], 18)
+                            model = MaskClassifier_custom_transformer2(
+                                '_'.join(model_version.split('_')[:-4]), 18)
                             model.load_state_dict(torch.load(
                                 model_folder+"/"+model_version))
                         except:
-                            model = torch.load(model_folder+"/"+model_version)
+                            try:
+                                model = MaskClassifier(CFG['model_arch'], 18)
+                                model.load_state_dict(torch.load(
+                                    model_folder+"/"+model_version))
+                            except:
+                                model = torch.load(
+                                    model_folder+"/"+model_version)
         model = model.to(device)
         with torch.no_grad():
             val_preds += [inference_one_epoch(model, val_loader, device)]
