@@ -60,5 +60,7 @@ for imgs in os.listdir(sub_dir):
         os.mkdir(tmp)
 
     plt.imsave(os.path.join(tmp, imgs), img)
+os.rename(img_path, img_path+'_old')
+os.rename(new_img_dir, img_path)
 
 print(cnt)

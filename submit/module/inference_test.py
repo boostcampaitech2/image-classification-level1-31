@@ -142,12 +142,6 @@ if __name__ == "__main__":
         CFG['save_model_path'], CFG['saved_file_name'])  # 모델 저장 폴더
     # 사용할 모델 리스트
     models = find_best_model(model_folder, CFG['ensemble_num'])
-    # models = ['swin_base_patch4_window12_384_fold_0_3_0.798.pt',
-    #           'swin_base_patch4_window12_384_fold_1_4_0.828.pt',
-    #           'swin_base_patch4_window12_384_fold_2_0_0.807.pt',
-    #           'swin_base_patch4_window12_384_fold_3_7_0.838.pt',
-    #           'swin_base_patch4_window12_384_fold_4_5_0.851.pt'
-    #           ]
 
     device = torch.device(CFG['device'])
 
@@ -157,11 +151,11 @@ if __name__ == "__main__":
     for i, model_version in enumerate(models):
 
         # 저장하는 모델의 이름을 통일하지 않아 임시적으로 model load 구성
-        if model_version == 'vgg19_fold_8_0.803.pt':
-            model = MyModel(18)
+        if 'vgg19' in model_version:
+            model = MyModel_na(18)
             model.load_state_dict(torch.load(model_folder+"/"+model_version))
 
-        elif model_version == 'best_0.8.pth':
+        elif 'best' in model_version:
             model = TestModel(18)
             model.load_state_dict(torch.load(model_folder+"/"+model_version))
 

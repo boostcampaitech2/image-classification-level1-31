@@ -128,11 +128,6 @@ if __name__ == "__main__":
         train = SepValidTrain().make_detailpath_N_label_df(train_)
         valid = SepValidTrain().make_detailpath_N_label_df(valid_)
 
-        # # 추가 데이터 60-98 데이터 학습
-        # new_train_df = pd.read_csv('/opt/ml/input/data/train/newim.csv')
-        # new_train_df = new_train_df.drop(['Unnamed: 0'], axis=1)
-        # train = pd.concat([train, new_train_df], axis=0)
-
         print('Training with {} started'.format(fold))
         train_set = MaskDataset(train, get_train_transforms())
         valid_set = MaskDataset(valid, get_train_transforms())
@@ -149,13 +144,6 @@ if __name__ == "__main__":
         device = torch.device(CFG['device'])
 
         # 모델 생성
-
-        # if model_class[CFG['model_arch']] == 'Transformer':
-        #     print('Training Model is {}'.format(
-        #         model_class[CFG['model_arch']]))
-        #     model = MaskClassifier_transformer(
-        #         CFG['model_arch'], train['class_label'].nunique(), True)
-
         if model_class[CFG['model_arch']] == 'Transformer':
             print('Training Model is {}'.format(
                 model_class[CFG['model_arch']]))
@@ -189,11 +177,6 @@ if __name__ == "__main__":
 
         # loss 선언
         if CFG['loss'] == 'crossentropy':
-            # class_weights = class_weight.compute_class_weight(
-            #     class_weight='balanced', classes=np.arange(18), y=train['class_label'].values)
-            # loss_fn = nn.CrossEntropyLoss(
-            #     weight=torch.tensor(class_weights, dtype=torch.float)
-            # ).to(device)
             loss_fn = nn.CrossEntropyLoss()
         elif CFG['loss'] == 'f1':
             loss_fn = F1Loss(18)
@@ -213,20 +196,8 @@ if __name__ == "__main__":
                           scheduler=scheduler,
                           schd_batch_update=False
                           )
-        # 학습 시작
-        # for epoch in range(CFG['warmup_epochs']):
-        #     trainer.train_one_epoch(
-        #         epoch, train_loader, cutmix_beta=0.5, accum_iter=2)
-        #     with torch.no_grad():
-        #         valid_f1 = trainer.valid_one_epoch(epoch, val_loader)
-        #     folder_path = os.path.join(
-        #         '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_floder'])
-        #     if best_valid_f1 < valid_f1:
-        #         torch.save(model.state_dict(), os.path.join(folder_path, '{}_fold_{}_{}_{}.pt'.format(
-        #             CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))
-        #         best_valid_f1 = valid_f1
 
-        # trainer.loss_fn = F1Loss(18)
+        # 학습 시작
         for epoch in range(CFG['epochs']):
             trainer.train_one_epoch(
                 epoch, train_loader, cutmix_beta=0.5, accum_iter=2)
