@@ -33,10 +33,10 @@ from sklearn.model_selection import StratifiedKFold
 CFG = {
     'fold_num': 10,
     'seed': 719,
-    'model_arch': 'tf_efficientnet_b4_ns',
-    'img_size': 224,
+    'model_arch': 'swin_large_patch4_window12_384',
+    'img_size': 384,
     'epochs': 10,
-    'train_bs': 32,
+    'train_bs': 16,
     'valid_bs': 32,
     'T_0': 10,
     'lr': 1e-4,
@@ -47,7 +47,7 @@ CFG = {
     'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'saved_file_name': 'tf_efficientnet_b4_ns_sampler_aug'
+    'saved_file_name': 'swin_large_patch4_window12_384'
 }
 
 
@@ -208,11 +208,28 @@ def prepare_dataloader(df, trn_idx, val_idx):
     return train_loader, val_loader
 
 
+# class MaskClassifier(nn.Module):
+#     def __init__(self, model_arch, n_class, pretrained=False):
+#         super().__init__()
+#         self.model = timm.create_model(
+#             model_arch, num_classes=n_class, pretrained=pretrained)
+#        # n_features = self.model.classifier.in_features
+#        # self.model.classifier = nn.Linear(n_features, n_class)
+
+#         # 초기화 모델에 따라 마지막단이 (이름이) classifier가 아닐 수 있습니다.
+#         # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
+#         # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
+#         # self.model.classifier.bias.data.uniform_(-stdv, stdv)
+
+#     def forward(self, x):
+#         x = self.model(x)
+#         return x
 class MaskClassifier(nn.Module):
     def __init__(self, model_arch, n_class, pretrained=False):
         super().__init__()
         self.model = timm.create_model(
-            model_arch, num_classes=n_class, pretrained=pretrained)
+            model_arch, pretrained=pretrained)
+        self.model.head = nn.Linear(1536, 18)
        # n_features = self.model.classifier.in_features
        # self.model.classifier = nn.Linear(n_features, n_class)
 
@@ -315,6 +332,8 @@ def make_save_dir(path, filename):
 
 
 if __name__ == "__main__":
+    make_save_dir(
+        '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
     seed_everything(CFG['seed'])
     train = make_df_with_label(
         data_folder_directory="/opt/ml/input/data/train")  # data with label
@@ -324,7 +343,7 @@ if __name__ == "__main__":
     for fold, (trn_idx, val_idx) in enumerate(folds):
         if fold > 0:
             break
-
+        best_valid_f1 = 0.7
         print('Training with {} started'.format(fold))
         train_loader, val_loader = prepare_dataloader(train, trn_idx, val_idx)
 
@@ -349,10 +368,11 @@ if __name__ == "__main__":
             with torch.no_grad():
                 valid_f1 = valid_one_epoch(
                     epoch, model, loss_fn, val_loader, device, scheduler=None, schd_loss_update=False)
-            make_save_dir('/opt/ml/input/model_saver', CFG['saved_file_name'])
             folder_name = os.path.join(
-                '/opt/ml/input/model_saver/', CFG['saved_file_name'])
-            torch.save(model, os.path.join(folder_name, '{}_fold_{}_{}_{}.pt'.format(
-                CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))
+                '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_file_name'])
+            if best_valid_f1 < valid_f1:
+                torch.save(model, os.path.join(folder_name, '{}_fold_{}_{}_{}.pt'.format(
+                    CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))
+                best_valid_f1 = valid_f1
         del model, optimizer, train_loader, val_loader, scaler, scheduler
         torch.cuda.empty_cache()

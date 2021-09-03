@@ -1,3 +1,4 @@
+from soupsieve import select
 import torchvision
 import torch
 from torch import nn
@@ -32,8 +33,8 @@ CFG = {
     'fold_num': 10,
     'seed': 719,
     # 'model_arch': 'vit_base_patch16_384',
-    'model_arch': 'tf_efficientnet_b4_ns',
-    'img_size': 224,
+    'model_arch': 'swin_base_patch4_window12_384',
+    'img_size': 384,
     'epochs': 10,
     'train_bs': 16,
     'valid_bs': 32,
@@ -45,7 +46,11 @@ CFG = {
     # suppoprt to do batch accumulation for backprop with effectively larger batch size
     'accum_iter': 2,
     'verbose_step': 1,
-    'device': 'cuda:0'
+    'device': 'cuda:0',
+    # 'model_folder': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
+    'save_model_path': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
+    'saved_file_name': 'ensemble',
+    'ensemble_num': 5
 }
 
 
@@ -96,15 +101,35 @@ def get_inference_transforms():
     ])
 
 
-class MaskClassifier(nn.Module):
+# class MaskClassifier(nn.Module): # efficientnet model
+#     def __init__(self, model_arch, n_class, pretrained=False):
+#         super().__init__()
+#         self.model = timm.create_model(
+#             model_arch, num_classes=n_class, pretrained=pretrained)
+#        # n_features = self.model.classifier.in_features
+#        # self.model.classifier = nn.Linear(n_features, n_class)
+
+#         # 초기화
+#         # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
+#         # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
+#         # self.model.classifier.bias.data.uniform_(-stdv, stdv)
+
+#     def forward(self, x):
+#         x = self.model(x)
+#         return x
+
+
+class MaskClassifier(nn.Module):  # transfer model
     def __init__(self, model_arch, n_class, pretrained=False):
         super().__init__()
         self.model = timm.create_model(
             model_arch, num_classes=n_class, pretrained=pretrained)
+        # in_feature = self.model.head.in_features
+        # self.model.head = nn.Linear(in_features=in_feature, out_features=18)
        # n_features = self.model.classifier.in_features
        # self.model.classifier = nn.Linear(n_features, n_class)
 
-        # 초기화
+        # 초기화 모델에 따라 마지막단이 (이름이) classifier가 아닐 수 있습니다.
         # torch.nn.init.xavier_uniform_(self.model.classifier.weight)
         # stdv = 1. / math.sqrt(self.model.classifier.weight.size(1))
         # self.model.classifier.bias.data.uniform_(-stdv, stdv)
@@ -130,6 +155,24 @@ def inference_one_epoch(model, data_loader, device):
     return image_preds_all
 
 
+def find_best_model(path, num):
+    """[summary]
+    저장한 모델 중 f1 score가 가장 높은 모델부터 num개 list로 가져옴
+    Args:
+        path ([str]): 모델 저장 폴더 위치
+        num ([int): 가져오고 싶은 모델 개수
+    """
+    tmp = {}
+    saved_model_path = path
+    filelist = os.listdir(saved_model_path)
+    for file in filelist:
+        if file[0] != '.':
+            f1_score = file.split('_')[-1]
+            tmp[float(f1_score[:-3])] = file
+    selectmodel = sorted(list(tmp.keys()), reverse=True)[:num]
+    return [tmp[model] for model in selectmodel]
+
+
 if __name__ == "__main__":
     seed_everything(CFG['seed'])
     train = pd.read_csv("/opt/ml/input/data/train/labeled_train_data.csv")
@@ -148,7 +191,9 @@ if __name__ == "__main__":
 
         print('Inference fold {} started'.format(fold))
 
-        valid_ = train.loc[val_idx, :].reset_index(drop=True)
+        # valid_ = train.loc[val_idx, :].reset_index(drop=True)
+        valid_ = pd.read_csv('/opt/ml/input/data/train/test.csv')
+
         valid_ds = MaskDataset(
             valid_, transforms=get_inference_transforms(), output_label=False)
 
@@ -181,34 +226,47 @@ if __name__ == "__main__":
         val_preds = []
         tst_preds = []
 
-        model_folder = '/opt/ml/input/model_saver/tf_efficientnet_b4_ns_sampler_aug'  # 모델 저장 폴더
+        model_folder = os.path.join(
+            CFG['save_model_path'], CFG['saved_file_name'])  # 모델 저장 폴더
         # 사용할 모델 리스트
-        models = ['tf_efficientnet_b4_ns_sampler_augtf_efficientnet_b4_ns_fold_0_9_0.942.pt',
-                  'tf_efficientnet_b4_ns_sampler_augtf_efficientnet_b4_ns_fold_0_8_0.943.pt',
-                  'tf_efficientnet_b4_ns_sampler_augtf_efficientnet_b4_ns_fold_0_5_0.939.pt',
-                  'tf_efficientnet_b4_ns_sampler_augtf_efficientnet_b4_ns_fold_0_7_0.938.pt']
+        models = find_best_model(model_folder, CFG['ensemble_num'])
+        # models = ['swin_base_patch4_window12_384_fold_0_9_0.82.pt',
+        #   'swin_base_patch4_window12_384_fold_1_4_0.828.pt',
+        #   'swin_base_patch4_window12_384_fold_2_0_0.807.pt',
+        #   'swin_base_patch4_window12_384_fold_3_7_0.838.pt',
+        #   'swin_base_patch4_window12_384_fold_4_5_0.851.pt'
+        #   ]
 
         for i, model_version in enumerate(models):
-            model = torch.load(model_folder+"/"+model_version)
+            model = MaskClassifier(
+                CFG['model_arch'], train['label'].nunique(), True)  # .to(device)
             model = model.to(device)
+            try:
+                model = torch.load(model_folder+"/"+model_version)
+            except:
+
+                model.load_state_dict(torch.load(
+                    model_folder+"/"+model_version))
+
+            # model = model.to(device)
             with torch.no_grad():
                 val_preds += [inference_one_epoch(model, val_loader, device)]
-                tst_preds += [inference_one_epoch(model, tst_loader, device)]
+                # tst_preds += [inference_one_epoch(model, tst_loader, device)]
 
         val_preds = np.mean(val_preds, axis=0)
         tst_preds = np.mean(tst_preds, axis=0)
 
         print('fold {} validation loss = {:.5f}'.format(
-            fold, log_loss(valid_.label.values, val_preds)))
+            fold, log_loss(valid_.class_label.values, val_preds)))
         print('fold {} validation f1-score = {:.5f}'.format(fold,
-              f1_score(valid_.label.values, np.argmax(val_preds, axis=1), average='macro')))
+              f1_score(valid_.class_label.values, np.argmax(val_preds, axis=1), average='macro')))
         print(classification_report(
-            valid_.label, np.argmax(val_preds, axis=1)))
+            valid_.class_label, np.argmax(val_preds, axis=1)))
 
         submission = pd.read_csv("/opt/ml/input/data/eval/info.csv")
         submission['ans'] = np.argmax(tst_preds, axis=1)
         submission.to_csv(
-            "/opt/ml/code/submission_files/tf_efficientnet_b4_ns.csv", index=False)
+            os.path.join("/opt/ml/image-classification-level1-31/Jaehyun/submission_files", "{}.csv".format(CFG['saved_file_name'])), index=False)
 
         del model, tst_loader, val_loader  # , scaler, scheduler
         torch.cuda.empty_cache()
