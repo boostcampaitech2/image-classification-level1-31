@@ -48,6 +48,8 @@ module
 2. make_df_sep_val_trn.py 실행으로 train / test 용 csv split
 3. train.py 실행
 4. 트레이닝된 model을 모아 inferece_test.py를 통해 앙상블 후 submission파일로 저장
+
+참고 : train.py와 inference_test.py 의 CFG를 통해 자신의 환경에 맞게 바꿔야함
 ```
 
 #### Architecture2 : tf_efficientnet_b4_ns
