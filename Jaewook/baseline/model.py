@@ -3,8 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 
-from torchvision.models import resnet18
+from torchvision import models
 import timm
+import math
 
 def initialize_weights(model):
     for m in model.modules():
@@ -72,12 +73,113 @@ class MyResnet18(nn.Module):
         x = self.model(x)
         return x
 
-class EfficientNet(nn.Module):
+class EffB4Model(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.model = timm.create_model('tf_efficientnet_b4_ns', pretrained=True)
-        self.model.classifier = nn.Linear(1792, num_classes)
+        self.model.classifier = nn.Sequential(
+            nn.Linear(1792, 1024),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(1024, 512),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(512, num_classes)
+        )
+        initialize_weights(self.model.classifier)
         
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class EffB3(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = timm.create_model('tf_efficientnet_b3_ns', pretrained=True)
+        self.model.classifier = nn.Sequential(
+            nn.Linear(1536, 1000),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(1000, 512),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(512, 256),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(256, num_classes)
+        )
+        initialize_weights(self.model.classifier)
+        
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class VitBase(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = timm.create_model('vit_base_patch16_384', pretrained=True)
+        self.model.head = nn.Sequential(
+            nn.Linear(768, 512),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(512, 256),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(256, num_classes)
+        )
+        initialize_weights(self.model.head)
+        
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class NGModel(nn.Module):
+    def __init__(self, num_classes):
+        super(NGModel, self).__init__()
+        model = models.vgg19(pretrained=True)
+        self.features = model.features
+        self.dropout=nn.Dropout(0.2)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.classifier = nn.Linear(512,num_classes)
+        self.classifier = nn.Sequential(
+            nn.Dropout(0.2),
+            nn.Linear(512, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, num_classes),
+        )
+
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = self.dropout(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
+
+class JHModel(nn.Module):  # transformer model
+    def __init__(self, num_classes, pretrained=False):
+        super().__init__()
+        self.model = timm.create_model(
+            'vit_base_r50_s16_384', pretrained=pretrained)
+        in_features = self.model.head.in_features
+        self.model.head = nn.Sequential(
+            nn.Linear(in_features=in_features, out_features=512),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Linear(in_features=512, out_features=256),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Linear(in_features=256, out_features=num_classes),
+        )
+
+        def my_xavier_uniform(submodule):
+            if isinstance(submodule, nn.Linear):
+                torch.nn.init.xavier_uniform_(submodule.weight)
+                stdv = 1. / math.sqrt(submodule.weight.size(1))
+                submodule.bias.data.uniform_(-stdv, stdv)
+        self.model.head.apply(my_xavier_uniform)
+
     def forward(self, x):
         x = self.model(x)
         return x
@@ -85,4 +187,3 @@ class EfficientNet(nn.Module):
 
 if __name__ == '__main__':
     print('model.py is running')
-    myModel = EfficientNet(18)

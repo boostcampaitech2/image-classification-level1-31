@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, dataloader
 from torch.utils.tensorboard import SummaryWriter
 from torch.cuda.amp import autocast, GradScaler
 
@@ -97,7 +97,7 @@ def train(data_dir, model_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     # -- dataset
-    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: BaseAugmentation
+    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: BaseDataset
     dataset = dataset_module(
         data_dir=data_dir,
     )
@@ -235,7 +235,7 @@ def train(data_dir, model_dir, args):
 
             val_f1_preds = np.concatenate(val_f1_preds)
             val_f1_labels = np.concatenate(val_f1_labels)
-            val_f1 = f1_score(val_f1_preds, val_f1_labels, average='macro')
+            val_f1 = f1_score(val_f1_labels, val_f1_preds, average='macro')
             print(classification_report(val_f1_labels, val_f1_preds))
 
             best_val_loss = min(best_val_loss, val_loss)
@@ -261,6 +261,7 @@ def train(data_dir, model_dir, args):
             logger.add_scalar("Val/accuracy", val_acc, epoch)
             logger.add_figure("results", figure, epoch)
             print()
+        
 
     print('Total Time:', time.time()-since)
 
@@ -283,9 +284,9 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: Adam)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
+    parser.add_argument('--lr_decay_step', type=int, default=3, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
