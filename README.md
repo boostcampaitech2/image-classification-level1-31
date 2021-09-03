@@ -51,11 +51,13 @@ baseline
 |-- train.py
 |-- inference.py
 |-- model
-    |-- exp
-        |-- best.pth
-        |-- config.json
-        |-- last.pth
-    |-- exp1
+|   |-- exp
+|       |-- best.pth
+|       |-- config.json
+|       |-- last.pth
+|   |-- exp1
+|-- output
+|   |-- output.csv
 ```
 
 - `baseline/` : 전체 코드가 들어있는 폴더
