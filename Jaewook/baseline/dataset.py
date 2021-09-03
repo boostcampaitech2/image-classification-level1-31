@@ -58,7 +58,8 @@ class CustomAugmentation:
             ColorJitter(0.1, 0.1, 0.1, 0.1),
             ToTensor(),
             Normalize(mean=mean, std=std),
-            AddGaussianNoise()
+            RandomHorizontalFlip(p=0.5),
+            # AddGaussianNoise()
         ])
 
     def __call__(self, image):
@@ -201,7 +202,7 @@ class MaskBaseDataset(Dataset):
 
     def read_image(self, index):
         image_path = self.image_paths[index]
-        return Image.open(image_path)
+        return Image.open(image_path).convert('RGB')
 
     @staticmethod
     def encode_multi_class(mask_label, gender_label, age_label) -> int:
@@ -297,11 +298,15 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
+        # self.transform = transforms.Compose([
+        #     Resize(resize, Image.BILINEAR),
+        #     ToTensor(),
+        #     Normalize(mean=mean, std=std),
+        # ])
+        self.transform = None
+        self.resize = resize
+        self.mean = mean
+        self.std = std
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
@@ -312,6 +317,9 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+    def set_transform(self, transform):
+        self.transform = transform
 
 if __name__ == '__main__':
     print('dataset.py is running')
