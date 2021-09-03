@@ -66,6 +66,8 @@ baseline
 - `model.py` : 모델 architecture를 정의
 - `train.py` : dataset, loss, model 등 학습에 필요한 모듈을 불러오고 학습을 진행하고 모델을 저
 - `inference.py` : 저장된 모델을 불러와서 eval 데이터로 제출 파일을 만드는 파일 (하나의모델 or 앙상블)
+- `model/` : 모델들이 저장되는 폴더
+- `output/` : 제출할 csv 파일이 저장되는 폴더
 
 리더보드에 제출할 모델을 재현할 방법
 ```bash
