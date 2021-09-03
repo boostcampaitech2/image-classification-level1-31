@@ -53,7 +53,7 @@ module
 #### Architecture2 : tf_efficientnet_b4_ns
 
 ```
-baseline
+modules
 |-- datset.py
 |-- loss.py
 |-- model.py
