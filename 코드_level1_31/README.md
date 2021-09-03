@@ -86,7 +86,7 @@ baseline
 
 #### Architecture3 : vgg19
 
--vggtrain.ipynb : 전체 코드 파일
+- `vggtrain.ipynb` : 전체 코드 파일
 ```
 실제 앙상블에 사용한 vgg19_fold_8_0.803.pt 재현 불가
 vgg19_fold_7_0.804.pt 또는 vgg19_fold_8_0.806.pt 사용
