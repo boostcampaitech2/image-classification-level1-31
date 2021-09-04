@@ -92,7 +92,7 @@ tf_efficientnet_b4_ns
 리더보드에 제출할 모델을 재현할 방법
 
 ```bash
-~# python train.py --augmentation=CustomAugmentation --dataset=MaskSplitByProfileDataset --epochs=8 --model=EffB4Model
+~# python train.py --augmentation=CustomAugmentation --dataset=MaskSplitByProfileDataset --epochs=8 --model=EffB4Model --data_dir='데이터 경로를 입력해주세요'
 ```
 
 #### Architecture3 : vgg19
