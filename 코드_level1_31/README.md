@@ -104,6 +104,7 @@ tf_efficientnet_b4_ns
 
 ```
 vgg19
+|--saved_model
 |--vggtrain.ipynb
 |--new_train.csv
 |--new_valid.csv
@@ -113,5 +114,5 @@ vgg19
 
 ```
 실제 앙상블에 사용한 vgg19_fold_8_0.803.pt 재현 불가
-vgg19_fold_7_0.804.pt 또는 vgg19_fold_8_0.806.pt 사용
+saved_model에 저장된 vgg19_fold_7_0.804.pt 또는 vgg19_fold_8_0.806.pt 사용
 ```
