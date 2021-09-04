@@ -4,7 +4,7 @@
 
 1. `tf_efficientnet_b4_ns` 폴더에서 앙상블에 사용할 architecture-2 모델 만들기. 방법은 아래 설명되어 있습니다.
 2. `vggtrain.ipynb` 에서 앙상블에 사용할 architecture-3 모델 만들기.
-3. `module` 폴더에서 앙상블에 사용할 architecture-1 모델 만들기. 방법은 아래에 설명되어 있습니다.
+3. `swin_base_patch4_window12_384_and_tf_efficientnet_b4_ns` 폴더에서 앙상블에 사용할 architecture-1 모델 만들기. 방법은 아래에 설명되어 있습니다.
 4. architecture 1,2,3을 `inference_test.py` 의 CFG에서 지정한 폴더(default : ensemble)에 한 곳에 모으고`inference_test.py` 실행으로 `submmission.csv ` 생성
 
 ### Installation
