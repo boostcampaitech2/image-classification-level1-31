@@ -98,6 +98,13 @@ tf_efficientnet_b4_ns
 
 #### Architecture3 : vgg19
 
+```
+vgg19
+|--vggtrain.ipynb
+|--new_train.csv
+|--new_valid.csv
+```
+
 - `vggtrain.ipynb` : 전체 코드 파일
 
 ```
