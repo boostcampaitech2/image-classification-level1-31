@@ -116,3 +116,11 @@ vgg19
 실제 앙상블에 사용한 vgg19_fold_8_0.803.pt 재현 불가
 saved_model에 저장된 vgg19_fold_7_0.804.pt 또는 vgg19_fold_8_0.806.pt 사용
 ```
+
+##### Reference
+- https://www.kaggle.com/khyeh0719/pytorch-efficientnet-baseline-train-amp-aug
+- https://www.kaggle.com/khyeh0719/pytorch-efficientnet-baseline-inference-tta
+- https://www.kaggle.com/piantic/train-cassava-starter-using-various-loss-funcs
+- https://stages.ai/competitions/74/discussion/talk/post/436
+- https://stages.ai/competitions/74/discussion/talk/post/475
+- https://stages.ai/competitions/74/discussion/talk/post/493
