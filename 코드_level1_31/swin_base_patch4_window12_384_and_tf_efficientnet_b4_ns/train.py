@@ -98,10 +98,10 @@ def make_save_dir(path, filename):
 if __name__ == "__main__":
     seed_everything(CFG['seed'])
     make_save_dir(
-        '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_floder'])
+        './data', CFG['saved_floder'])
 
     # config txt로 저장
-    f = open(os.path.join('/opt/ml/image-classification-level1-31/Jaehyun/saved_model/' +
+    f = open(os.path.join('./data/' +
              CFG['saved_floder'], 'log.txt'), 'w')
     f.write(str(CFG.items()).replace(',', '\n'))
     f.close()
@@ -203,7 +203,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 valid_f1 = trainer.valid_one_epoch(epoch, val_loader)
             folder_path = os.path.join(
-                '../data', CFG['saved_floder'])
+                './data', CFG['saved_floder'])
             if best_valid_f1 < valid_f1:
                 torch.save(model.state_dict(), os.path.join(folder_path, '{}_fold_{}_{}_{}.pt'.format(
                     CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))

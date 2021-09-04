@@ -25,6 +25,7 @@ model_class = {'swin_base_patch4_window12_384': 'Transformer',
 
 CFG = {
     'seed': 719,
+    'img_size': 384,
     'model_arch': 'swin_base_patch4_window12_384',
     'epochs': 10,
     'valid_bs': 32,
@@ -32,7 +33,7 @@ CFG = {
     # suppoprt to do batch accumulation for backprop with effectively larger batch size
     'verbose_step': 1,
     'device': 'cuda:0',
-    'save_model_path': '../data',  # 저장된 모델들의 폴더 경로
+    'save_model_path': './data',  # 저장된 모델들의 폴더 경로
     'saved_file_name': 'ensemble',
 }
 
