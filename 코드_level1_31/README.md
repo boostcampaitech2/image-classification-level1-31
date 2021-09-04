@@ -55,7 +55,7 @@ module
 #### Architecture2 : tf_efficientnet_b4_ns
 
 ```
-baseline
+tf_efficientnet_b4_ns
 |-- datset.py
 |-- loss.py
 |-- model.py
@@ -71,7 +71,7 @@ baseline
 |   |-- output.csv
 ```
 
-- `baseline/` : 전체 코드가 들어있는 폴더
+- `tf_efficientnet_b4_ns/` : tf_efficientnet_b4_ns모델을 만드는 코드가 들어있는 폴더
 - `dataset.py` : 데이터셋을 만들고 augmentation을 정의하는 파일
 - `loss.py` : loss를 정의하는 파일
 - `model.py` : 모델 architecture를 정의
