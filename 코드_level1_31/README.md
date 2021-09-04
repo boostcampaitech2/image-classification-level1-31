@@ -3,7 +3,8 @@
 ### Getting Started
 1. `Baseline` 폴더에서 앙상블에 사용할 architecture-2 모델 만들기. 방법은 아래 설명되어 있습니다.
 2. `vggtrain.ipynb` 에서 앙상블에 사용할 architecture-3 모델 만들기.
-3.
+3. `module` 폴더에서 앙상블에 사용할 architecture-1 모델 만들기. 방법은 아래에 설명되어 있습니다.
+4. architecture 1,2,3을 `inference_test.py` 의 CFG에서 지정한 폴더에 한 곳에 모으고`inference_test.py` 실행으로 `submmission.csv ` 생성
 
 ### Installation
 
@@ -51,8 +52,11 @@ module
 ```
 1. tools의 face_crop.py , face_crop_eval.py 실행
 2. make_df_sep_val_trn.py 실행으로 train / test 용 csv split
-3. train.py 실행
-4. 트레이닝된 model을 모아 inferece_test.py를 통해 앙상블 후 submission파일로 저장
+3-1. CFG의 'model_arch'를 swin_base_patch4_window12_384로 설정하고 train.py 실행
+3-2. swin_base_patch4_window12_384_fold_0_4_0.788.pt, swin_base_patch4_window12_384_fold_1_9_0.821.pt를 앙상블 할 폴더에 저장
+4-1. CFG의 'model_arch'를 tf_efficientnet_b4_ns로 설정하고 train.py 실행
+4-2. tf_efficientnet_b4_ns_fold_0_7_0.833.pt를 앙상블 할 폴더에 저장
+5. 트레이닝된 model을 모아 inferece_test.py를 통해 앙상블 후 submission파일로 저장
 
 참고 : train.py와 inference_test.py 의 CFG를 통해 자신의 환경에 맞게 바꿔야함
 ```
