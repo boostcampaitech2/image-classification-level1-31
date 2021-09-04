@@ -139,7 +139,7 @@ if __name__ == "__main__":
     )
 
     model_folder = os.path.join(
-        CFG['save_model_path'], CFG['saved_file_name'])  # 모델 저장 폴더
+        CFG['save_model_path'], CFG['saved_file_name'])  # 모델이 저장된 폴더
     # 사용할 모델 리스트
     models = find_best_model(model_folder, CFG['ensemble_num'])
 
