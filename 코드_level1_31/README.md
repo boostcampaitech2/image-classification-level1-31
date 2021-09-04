@@ -36,6 +36,9 @@ swin_base_patch4_window12_384_and_tf_efficientnet_b4_ns
 |   `-- models.py
 |-- inference_test.py
 |-- train.py
+|-- tools
+|   |-- face_crop.py
+|   `-- face_crop_eval.py
 `-- trainer
     |-- __init__.py
     |-- custom_scheduler.py
@@ -47,6 +50,7 @@ swin_base_patch4_window12_384_and_tf_efficientnet_b4_ns
 - `inference_test.py` : trained된 model들을 바탕으로 submission.csv 파일 생성
 - `train.py` : 설정한 모델을 바탕으로 학습된 모델 파라미터를 저장
 - `trainer/` : `train.py` 에서 학습에 필요한 함수들 모음
+- `tools` : 이미지 데이터를 얼굴 부분만 잘라주는 tool
 
 ##### 리더보드에 제출할 모델을 재현할 방법
 
