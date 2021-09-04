@@ -32,7 +32,7 @@ model_class = {'swin_base_patch4_window12_384': 'Transformer',
 
 CFG = {
     'model_arch': 'swin_base_patch4_window12_384',
-    'saved_floder': 'swin_base_patch4_window12_384',
+    'saved_floder': 'saved_architecture_1',
     'loss': 'crossentropy',
     # 'loss': 'f1',
     # 'loss': 'labelsmooth',

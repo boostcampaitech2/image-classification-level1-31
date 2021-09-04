@@ -25,7 +25,6 @@ model_class = {'swin_base_patch4_window12_384': 'Transformer',
 
 CFG = {
     'seed': 719,
-    # 'model_arch': 'vit_base_patch16_384',
     'model_arch': 'swin_base_patch4_window12_384',
     'epochs': 10,
     'valid_bs': 32,
@@ -35,7 +34,6 @@ CFG = {
     'device': 'cuda:0',
     'save_model_path': '../data',  # 저장된 모델들의 폴더 경로
     'saved_file_name': 'ensemble',
-    'ensemble_num': 10
 }
 
 
@@ -72,27 +70,21 @@ def inference_one_epoch(model, data_loader, device):
     return image_preds_all
 
 
-def find_best_model(path, num):
+def load_saved_model(path):
     """[summary]
-    저장한 모델 중 f1 score가 가장 높은 모델부터 num개 list로 가져옴
+    앙상블 할 모델들을 불러옴
     Args:
         path ([str]): 모델 저장 폴더 위치
-        num ([int): 가져오고 싶은 모델 개수
     Return:
         path에 있는 파일명들 list ([list])
     """
-    tmp = {}
+    loaded_model = []
     saved_model_path = path
     filelist = os.listdir(saved_model_path)
     for file in filelist:
         if file[0] != '.' and file != 'log.txt':
-            f1_score = file.split('_')[-1]
-            if f1_score.split('.')[-1] == 'pt':
-                tmp[float(f1_score[:-3])] = file
-            elif f1_score.split('.')[-1] == 'pth':
-                tmp[float(f1_score[:-4])] = file
-    selectmodel = sorted(list(tmp.keys()), reverse=True)[:num]
-    return [tmp[model] for model in selectmodel]
+            loaded_model.append(file)
+    return loaded_model
 
 
 if __name__ == "__main__":
@@ -131,7 +123,7 @@ if __name__ == "__main__":
     model_folder = os.path.join(
         CFG['save_model_path'], CFG['saved_file_name'])  # 모델이 저장된 폴더
     # 사용할 모델 리스트
-    models = find_best_model(model_folder, CFG['ensemble_num'])
+    models = load_saved_model(model_folder)
 
     device = torch.device(CFG['device'])
 
