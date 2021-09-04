@@ -122,6 +122,7 @@ if __name__ == "__main__":
 
     model_folder = os.path.join(
         CFG['save_model_path'], CFG['saved_file_name'])  # 모델이 저장된 폴더
+
     # 사용할 모델 리스트
     models = load_saved_model(model_folder)
 
