@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
         # Tensorboard
         logger = SummaryWriter(
-            log_dir='../logs/{}/{}'.format(CFG['saved_floder'], fold))
+            log_dir='./swin_base_patch4_window12_384_and_tf_efficientnet_b4_ns/logs/{}/{}'.format(CFG['saved_floder'], fold))
 
         train_ = raw_train.loc[trn_idx, :].reset_index(drop=True)
         valid_ = raw_train.loc[val_idx, :].reset_index(drop=True)
