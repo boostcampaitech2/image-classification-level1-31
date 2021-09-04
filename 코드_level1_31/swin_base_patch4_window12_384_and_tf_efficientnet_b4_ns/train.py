@@ -32,7 +32,7 @@ model_class = {'swin_base_patch4_window12_384': 'Transformer',
 
 CFG = {
     'model_arch': 'swin_base_patch4_window12_384',
-    'saved_floder': 'swin_base_patch4_window12_384_replay',
+    'saved_floder': 'swin_base_patch4_window12_384',
     'loss': 'crossentropy',
     # 'loss': 'f1',
     # 'loss': 'labelsmooth',
@@ -41,7 +41,6 @@ CFG = {
     'valid_bs': 32,
     'fold_num': 5,
     'seed': 719,
-    # 'warmup_epochs': 10,
     'epochs': 10,
     'T_0': 10,
     'lr': 1e-4,
@@ -204,7 +203,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 valid_f1 = trainer.valid_one_epoch(epoch, val_loader)
             folder_path = os.path.join(
-                '/opt/ml/image-classification-level1-31/Jaehyun/saved_model/', CFG['saved_floder'])
+                '../data', CFG['saved_floder'])
             if best_valid_f1 < valid_f1:
                 torch.save(model.state_dict(), os.path.join(folder_path, '{}_fold_{}_{}_{}.pt'.format(
                     CFG['model_arch'], fold, epoch, np.round(valid_f1, 3))))

@@ -5,20 +5,18 @@ from albumentations.core.composition import Compose
 from albumentations.pytorch import ToTensorV2
 
 # from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 import random
 import pandas as pd
 import numpy as np
 
 from tqdm import tqdm
-import timm
 import os
 
 from sklearn.metrics import f1_score, log_loss
 from sklearn.metrics import classification_report
 from data_utils.datasets import MaskDataset
-from data_utils.data_loaders import MaskDataLoader
 from model.models import *
 from model.loss import *
 model_class = {'swin_base_patch4_window12_384': 'Transformer',
@@ -26,24 +24,16 @@ model_class = {'swin_base_patch4_window12_384': 'Transformer',
                }
 
 CFG = {
-    'fold_num': 10,
     'seed': 719,
     # 'model_arch': 'vit_base_patch16_384',
     'model_arch': 'swin_base_patch4_window12_384',
-    'img_size': 384,
     'epochs': 10,
-    'train_bs': 16,
     'valid_bs': 32,
-    'T_0': 10,
-    'lr': 1e-4,
-    'min_lr': 1e-6,
-    'weight_decay': 1e-6,
     'num_workers': 4,
     # suppoprt to do batch accumulation for backprop with effectively larger batch size
-    'accum_iter': 2,
     'verbose_step': 1,
     'device': 'cuda:0',
-    'save_model_path': '/opt/ml/image-classification-level1-31/Jaehyun/saved_model',
+    'save_model_path': '../data',  # 저장된 모델들의 폴더 경로
     'saved_file_name': 'ensemble',
     'ensemble_num': 10
 }
@@ -209,4 +199,4 @@ if __name__ == "__main__":
     submission = pd.read_csv("/opt/ml/input/data/eval/info.csv")
     submission['ans'] = np.argmax(tst_preds, axis=1)
     submission.to_csv(
-        os.path.join("/opt/ml/image-classification-level1-31/Jaehyun/submission_files", "{}.csv".format(CFG['saved_file_name'])), index=False)
+        os.path.join("../submmision_files", "{}.csv".format(CFG['saved_file_name'])), index=False)
