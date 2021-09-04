@@ -1,8 +1,9 @@
 # Boost Camp 2기 31조 Level 1 - Mask Image Classification Competition
 
 ### Getting Started
-1. `Baseline` 폴더에서 tf_efficientnet_b4_ns 모델을 만들기.
-2. 
+1. `Baseline` 폴더에서 앙상블에 사용할 architecture-2 모델 만들기. 방법은 아래 설명되어 있습니다.
+2. `vggtrain.ipynb` 에서 앙상블에 사용할 architecture-3 모델 만들기.
+3.
 
 ### Installation
 
